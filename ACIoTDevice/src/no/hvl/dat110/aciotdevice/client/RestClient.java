@@ -1,7 +1,18 @@
 package no.hvl.dat110.aciotdevice.client;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.Scanner;
+
+import com.google.gson.Gson;
+
 public class RestClient {
 
+	
+	
 	public RestClient() {
 		// TODO Auto-generated constructor stub
 	}
@@ -9,19 +20,83 @@ public class RestClient {
 	private static String logpath = "/accessdevice/log";
 
 	public void doPostAccessEntry(String message) {
-
-		// TODO: implement a HTTP POST on the service to post the message
-		
+		send("POST", logpath, AccessMessage.class, new AccessMessage(message));
 	}
 	
 	private static String codepath = "/accessdevice/code";
 	
 	public AccessCode doGetAccessCode() {
-
-		AccessCode code = null;
 		
-		// TODO: implement a HTTP GET on the service to get current access code
+		AccessCode code = send("GET",codepath,AccessCode.class);
 		
 		return code;
+	}
+	
+	private static <T, O> T send(String method, String endpoint, Class<T> clazz) {
+		return send(method, endpoint, clazz, null);
+	}
+	
+	private static <T> T send(String method, String endpoint,Class<T> clazz, Object body){
+		try(Socket s = new Socket(Configuration.host,Configuration.port)){
+			String request = 
+					method + " "
+				   +endpoint+" HTTP/1.1\r\n"
+			   	  + "Accept: application/json\r\n"
+			   	  + "Host: localhost\r\n"
+			   	  + "Connection: close\r\n";
+			if (body != null) {
+				
+				Gson gson = new Gson();
+				String requestBody = gson.toJson(body);
+				request += "Content-type: application/json\r\n"
+						+  "Content-length: " + requestBody.length() + "\r\n"
+						+ "\r\n"
+						+ requestBody;
+			}
+			request += "\r\n";
+			
+			OutputStream stream = s.getOutputStream();
+			
+			PrintWriter pw = new PrintWriter(stream);
+			pw.print(request);
+			
+			if (body != null) {
+				
+			}
+			
+			pw.flush();
+			
+			InputStream in = s.getInputStream();
+			
+			Scanner sc = new Scanner(in);
+			
+			StringBuilder sb = new StringBuilder();
+			
+			boolean header = true;
+			while(sc.hasNext()) {
+				String line = sc.nextLine();
+				if (header) {
+					System.out.println(line);
+				}
+				else {
+					sb.append(line);
+				}
+				
+				if (line.isEmpty()) {
+					header = false;
+				}
+			}
+			
+			sc.close();
+			
+			Gson gson = new Gson();
+			T respBody = gson.fromJson(sb.toString(), clazz);
+			
+			return respBody;
+			
+		}catch(IOException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 }
