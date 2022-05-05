@@ -32,7 +32,7 @@ public class RestClient {
 		return code;
 	}
 	
-	private static <T, O> T send(String method, String endpoint, Class<T> clazz) {
+	private static <T> T send(String method, String endpoint, Class<T> clazz) {
 		return send(method, endpoint, clazz, null);
 	}
 	
@@ -72,6 +72,12 @@ public class RestClient {
 			
 			StringBuilder sb = new StringBuilder();
 			
+			//We retrieve the status line to check the status code
+			String status = sc.nextLine();
+			
+			//General syntax is [HTTP VERSION][STATUS CODE][REASON PHRASE]
+			String[] tokens = status.split(" ");
+			
 			boolean header = true;
 			while(sc.hasNext()) {
 				String line = sc.nextLine();
@@ -88,6 +94,10 @@ public class RestClient {
 			}
 			
 			sc.close();
+			
+			if (Integer.parseInt(tokens[1]) / 100 != 2) {
+				throw new RuntimeException("Recieved " + tokens[1] + " " + tokens[2] + ": " + sb.toString());
+			}
 			
 			Gson gson = new Gson();
 			T respBody = gson.fromJson(sb.toString(), clazz);
